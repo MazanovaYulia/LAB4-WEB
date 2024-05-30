@@ -1,50 +1,48 @@
 package com.example.demo
+
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestMethod
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import org.example.ToDo
 import org.example.ToDoItem
 import org.example.Status
 import java.time.LocalDate
 
-
 val toDoList = ToDo()
 
 @RestController
 class DemoController {
-    @RequestMapping("/home", method = [RequestMethod.GET])
+
+    @GetMapping("/home")
     fun home(): String? {
         return "HOME"
     }
 
-    @RequestMapping("/tasks", method = [RequestMethod.GET])
+    @GetMapping("/tasks")
     fun getTasks(): ResponseEntity<Any> {
         return ResponseEntity.ok(toDoList.listOutPut())
     }
 
-    @RequestMapping("/task", method = [RequestMethod.POST])
-    fun addTask(description: String, status: String,  date: String, additionalInfo: String): ResponseEntity<Any> {
-        val status = if (status.equals("ACTIVE", ignoreCase = true)) Status.ACTIVE else Status.DONE
-        val dueDate = LocalDate.parse(date)
+    @PostMapping("/addTask")
+    fun addTask(@RequestBody taskRequest: TaskRequest): ResponseEntity<Any> {
+        val status = if (taskRequest.status.equals("ACTIVE", ignoreCase = true)) Status.ACTIVE else Status.DONE
+        val dueDate = LocalDate.parse(taskRequest.date)
 
-        val task = ToDoItem(description, status, dueDate, additionalInfo)
+        val task = ToDoItem(taskRequest.description, status, dueDate, taskRequest.additionalInfo)
         toDoList.addTask(task)
 
         return ResponseEntity.ok(task)
     }
 
-    @RequestMapping("/task", method = [RequestMethod.PUT])
-    fun updateTask(id: String, description: String, status: String,  date: String, additionalInfo: String): ResponseEntity<Any> {
-        val taskId = id.toIntOrNull() ?: -1
+    @PutMapping("/updateTask")
+    fun updateTask(@RequestBody taskRequest: UpdateTaskRequest): ResponseEntity<Any> {
+        val taskId = taskRequest.id.toIntOrNull() ?: -1
         if (taskId != -1) {
             val task = toDoList.getTaskById(taskId)
             if (task != null) {
-                val newStatus = if (status.equals("ACTIVE", ignoreCase = true)) Status.ACTIVE else Status.DONE
-                val newDueDate = LocalDate.parse(date)
+                val newStatus = if (taskRequest.status.equals("ACTIVE", ignoreCase = true)) Status.ACTIVE else Status.DONE
+                val newDueDate = LocalDate.parse(taskRequest.date)
 
-                toDoList.updateTask(taskId, description, newStatus, newDueDate, additionalInfo)
+                toDoList.updateTask(taskId, taskRequest.description, newStatus, newDueDate, taskRequest.additionalInfo)
                 return ResponseEntity.ok(task)
             } else {
                 return ResponseEntity.notFound().build()
@@ -54,16 +52,16 @@ class DemoController {
         }
     }
 
-    @RequestMapping("/subtask", method = [RequestMethod.POST])
-    fun addSubtask(id: String, description: String, status: String,  date: String, additionalInfo: String): ResponseEntity<Any> {
-        val mainTaskId = id.toIntOrNull() ?: -1
+    @PostMapping("/subtask")
+    fun addSubtask(@RequestBody subtaskRequest: SubtaskRequest): ResponseEntity<Any> {
+        val mainTaskId = subtaskRequest.id.toIntOrNull() ?: -1
         if (mainTaskId != -1) {
             val mainTask = toDoList.getTaskById(mainTaskId)
             if (mainTask != null) {
-                val subtaskStatus = if (status.equals("ACTIVE", ignoreCase = true)) Status.ACTIVE else Status.DONE
-                val subtaskDueDate = LocalDate.parse(date)
+                val subtaskStatus = if (subtaskRequest.status.equals("ACTIVE", ignoreCase = true)) Status.ACTIVE else Status.DONE
+                val subtaskDueDate = LocalDate.parse(subtaskRequest.date)
 
-                val subtask = ToDoItem(description, subtaskStatus, subtaskDueDate, additionalInfo)
+                val subtask = ToDoItem(subtaskRequest.description, subtaskStatus, subtaskDueDate, subtaskRequest.additionalInfo)
                 mainTask.addSubtask(subtask)
                 return ResponseEntity.ok(mainTask)
             } else {
@@ -74,12 +72,9 @@ class DemoController {
         }
     }
 
-
-
-
-    @RequestMapping("/task", method = [RequestMethod.DELETE])
-    fun deleteTask(id: String): ResponseEntity<Any> {
-        val taskId = id.toIntOrNull() ?: -1
+    @DeleteMapping("/deleteTask")
+    fun deleteTask(@RequestBody idRequest: IdRequest): ResponseEntity<Any> {
+        val taskId = idRequest.id.toIntOrNull() ?: -1
         if (taskId != -1) {
             if (toDoList.removeTaskById(taskId)) {
                 return ResponseEntity.ok().build()
@@ -91,10 +86,9 @@ class DemoController {
         }
     }
 
-    @RequestMapping("/searchTaskByDescription", method = [RequestMethod.GET])
-    fun searchTaskByDescription(description: String): ResponseEntity<Any> {
-
-        val foundTask = toDoList.getTaskByDescription(description)
+    @GetMapping("/searchTaskByDescription")
+    fun searchTaskByDescription(@RequestBody descriptionRequest: DescriptionRequest): ResponseEntity<Any> {
+        val foundTask = toDoList.getTaskByDescription(descriptionRequest.description)
         if (foundTask != null) {
             return ResponseEntity.ok(foundTask)
         }
@@ -102,3 +96,34 @@ class DemoController {
         return ResponseEntity.notFound().build()
     }
 }
+
+data class TaskRequest(
+    val description: String,
+    val status: String,
+    val date: String,
+    val additionalInfo: String
+)
+
+data class UpdateTaskRequest(
+    val id: String,
+    val description: String,
+    val status: String,
+    val date: String,
+    val additionalInfo: String
+)
+
+data class SubtaskRequest(
+    val id: String,
+    val description: String,
+    val status: String,
+    val date: String,
+    val additionalInfo: String
+)
+
+data class IdRequest(
+    val id: String
+)
+
+data class DescriptionRequest(
+    val description: String
+)
